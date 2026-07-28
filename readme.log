@@ -1,0 +1,85 @@
+- goal: 
+    - on a linux machine (say ubuntu gnome) I want to be able to run a script and it opens a zoom window for me that zooms whatever is on the screen. This can be a hover type that follows my mouse or zooming the entire screen.
+    - It should be able to zoom multiple levels with repeated press of a button and follow the mouse.
+    - The keyboard should work while this is being done, and the mouse should be able to move and click etc.
+- questions:
+    - this probably depends a lot on the window server.
+        - what works best for me?
+        - what works best as a portable solution that works on various window servers
+            - this is important because I don't want this to be a heavy app that is running the entire time
+    - what solutions already exist, what they lack for me?
+- research:
+    - existing tools:
+        - standalone viewer tools (separate window, passive display):
+            - xzoom: X11 only, no mouse follow, no passthrough, legacy/unmaintained
+            - xmag / xmagnify: X11 only, static snapshot (not live), no passthrough
+            - magnus: X11 only, follows mouse (polling), passive viewer, 2x-5x zoom, unmaintained ~2021
+            - KMag (KDE): X11 only (broken on Wayland), passive viewer, follows mouse
+            - Virtual Magnifying Glass: X11 only, overlay lens, claimed mouse passthrough, updated Jan 2024
+            - milky-warp: Electron, X11/XWayland, hotkey activation, no documented passthrough
+            - wooz: Wayland (wlroots), on-demand, scroll to zoom, no documented click passthrough
+            - hyprmag: Wayland (wlroots), circular lens, FREEZES display while active — not usable
+        - compositor-level zoom (full-screen, best solution):
+            - GNOME Shell Magnifier:
+                - works on X11 and Wayland
+                - full keyboard and mouse passthrough (compositor remaps coordinates)
+                - modes: full screen, lens, docked
+                - zoom: 1x-20x, mouse tracking modes: centered/push/proportional/none
+                - toggle: Super+Alt+8, zoom in/out: Super+Alt+= / Super+Alt+-
+                - scriptable: gsettings set org.gnome.desktop.a11y.applications screen-magnifier-enabled true/false
+                - also controllable via D-Bus: org.gnome.Magnifier.setActive(bool)
+                - always resident in GNOME Shell, zero CPU when inactive
+            - KWin Zoom Effect (KDE Plasma):
+                - works on X11 and Wayland
+                - full keyboard and mouse passthrough
+                - two effects: full-screen zoom and fixed-size lens window
+                - zoom: Meta+= in, Meta+- out, Meta+0 reset; Meta+Ctrl+scroll
+                - scriptable via D-Bus: qdbus org.kde.kglobalaccel /component/kwin invokeShortcut view_zoom_in
+                - Plasma 6.3 (Dec 2024): added pixel grid at high zoom
+                - always resident in KWin, zero CPU when inactive
+            - xfwm4 zoom (XFCE):
+                - X11 only (Wayland in progress)
+                - full passthrough, follows mouse
+                - activation: Alt+scroll wheel (configurable)
+                - continuous zoom (no discrete preset levels)
+                - no D-Bus API; script control only via xdotool key injection
+            - Compiz Enhanced Zoom (ezoom):
+                - X11 only, no Wayland port — becoming obsolete
+                - full passthrough, three preset zoom levels, focus tracking
+                - requires Compiz as compositor
+            - Cinnamon Magnifier:
+                - X11 primary, limited Wayland
+                - full passthrough, 1x-15x zoom
+                - scriptable: dconf write /org/cinnamon/desktop/a11y/applications/screen-magnifier-enabled true
+            - Wayfire zoom plugin / Hyprland built-in:
+                - Wayland only, compositor-specific
+                - full passthrough
+        - X11 fallback (any DE):
+            - xrandr panning hack: xrandr --fb WxH --scale AxB --panning WxH
+                - works on any X11 setup regardless of DE
+                - full passthrough (X server level)
+                - ugly: panning only when mouse hits edges, not smooth follow
+                - X11 only
+    - compatibility matrix:
+        - X11 + Wayland (best portability): GNOME Shell Magnifier, KWin Zoom Effect
+        - X11 only: xzoom, xmag, magnus, KMag, Virtual Magnifying Glass, Compiz, xfwm4, Cinnamon, xrandr hack
+        - Wayland only: wooz, hyprmag, Wayfire plugin, Hyprland built-in
+    - answers to questions:
+        - what works best depends on your DE:
+            - GNOME: built-in magnifier (already present, Super+Alt+8 toggles, fully scriptable)
+            - KDE: KWin zoom effect (Meta+=, D-Bus scriptable)
+            - XFCE: xfwm4 built-in zoom (Alt+scroll)
+            - other/bare X11: xrandr panning hack (any X11), or run GNOME/KDE
+        - most portable across window servers: GNOME Shell Magnifier or KWin Zoom Effect
+            - both work on X11 and Wayland with full passthrough
+            - both are scriptable for on-demand activation
+        - "not always running" concern: compositor zoom is resident but costs zero CPU when inactive
+            - a script toggles it in milliseconds — effectively on-demand behavior
+            - this is better framed as "zero-cost when inactive" rather than "not running"
+        - what existing solutions lack:
+            - standalone viewers: separate window is disorienting; most Wayland-incompatible; no proper toggle
+            - Wayland standalone tools: no click passthrough (wooz), or freeze display (hyprmag)
+            - no mature portable solution for arbitrary DEs/compositors — tied to GNOME or KDE
+    - key insight: on GNOME or KDE you already have everything needed
+        - a shell script calling gsettings or qdbus gives toggle, zoom level, and mouse-follow
+        - the hard case is needing it to work across arbitrary DEs — no mature portable solution exists for that
